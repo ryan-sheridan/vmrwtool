@@ -7,4 +7,4 @@ problems i have encountered are the fact that hgsp4 always returns c03 which is 
 
 the second problem encountered is the kslide, dealing with kaslr is a must as i wont be able to correctly read where i want to in memory with out it, my long term solution that i believe will work is a debug or dev iboot and just disable kaslr on boot, or, patch iboot as the kslide is passed to the kernel in the bootargs struct in x0. so i just change it? i think. or use my power of task ports to find the kslide with task_info().
 
-all said this is day 1 and ill finish this project eventually, hopefully.
+all said this is day 1 and ill finish this project eventually, hopefully. wed 7 sept 2022 00:25
