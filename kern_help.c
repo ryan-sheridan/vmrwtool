@@ -5,7 +5,7 @@
 #include <mach-o/dyld.h>
 
 mach_port_t return_ktp(int type) {
-    // implements host_get_special_port(4) and task_for_pid(0) and if hgsp fails it will try tfp
+    // implements host_get_special_port(4) and task_for_pid(0) and if tfp fails it will try hgsp
     // if both fail exit with -1
 
     task_t kernel_task;
