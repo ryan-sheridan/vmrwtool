@@ -2,7 +2,7 @@ TARGET := iphone:clang:latest:7.0
 
 include $(THEOS)/makefiles/common.mk
 
-ARCHS = armv7
+ARCHS = armv7 arm64
 
 TOOL_NAME = vmrwtool
 
