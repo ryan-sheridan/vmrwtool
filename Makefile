@@ -6,7 +6,7 @@ ARCHS = armv7 arm64
 
 TOOL_NAME = vmrwtool
 
-vmrwtool_FILES = kern_help.c main.c
+vmrwtool_FILES = string_help.c kern_help.c main.c
 vmrwtool_CFLAGS = -fobjc-arc
 vmrwtool_CODESIGN_FLAGS = -Sentitlements.plist
 vmrwtool_INSTALL_PATH = /usr/local/bin
