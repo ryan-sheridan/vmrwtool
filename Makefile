@@ -17,4 +17,4 @@ client:
 	@echo "making for mac, doesnt work the same as ios but is good for test runs."
 	@echo ""
 
-	gcc kern_help.c main.c -o client.a
+	gcc include/kern_help.c main.c -o macvmrwtool

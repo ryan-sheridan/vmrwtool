@@ -5,11 +5,12 @@
 #include <string.h>
 #include "./include/kern_help.h"
 
-mach_port_t ktp;
+mach_port_t tp;
 uint64_t slide;
 uint64_t addr; // = 0xFFFFFFF007755C40;
 uint64_t data;
-uint64_t repeats;
+char bytes_char[8];
+long bytes;
 int pid = 0;
 int hasaslr = 1;
 bool kw = false;
@@ -22,6 +23,8 @@ void print_help(){
 }
 
 int main(int argc, char *argv[]) {
+    char zero_x[2] = "0x";
+
     if (argc == 1) {
         print_help();
         return 1;
@@ -43,9 +46,18 @@ int main(int argc, char *argv[]) {
     if ((strcmp(argv[1],"-r")==0) || (strcmp(argv[1],"--read")==0)) {
         if (argc == 5) {
             multiple = true;
-            sscanf(argv[2], "%llx", &addr);
-            sscanf(argv[3], "%llx", &repeats);
-            sscanf(argv[4], "%d", &pid);
+            if(strlen(argv[3]) <= 8){
+                strcpy(bytes_char, argv[3]);
+                if(bytes_char[1] == zero_x[1]){
+                    sscanf(argv[2], "%llx", &addr);
+                    sscanf(argv[3], "%lx", &bytes);
+                    sscanf(argv[4], "%d", &pid);
+                } else {
+                    sscanf(argv[2], "%llx", &addr);
+                    sscanf(argv[3], "%ld", &bytes);
+                    sscanf(argv[4], "%d", &pid);
+                }    
+            }
         } else {
             printf("hello world ?\n");
             return 1;
@@ -57,20 +69,18 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    ktp = return_ktp(1);
+    tp = return_tp(pid);
 
-    if ((ktp) == -1) {
-        printf("[ >>> ] failed exit code -1\n");
-        return -1;
+    if ((tp) == -1) {
+        printf("[ >>> ] failed [%s]\n", mach_error_string(tp));
     }
 
     if ((hasaslr = has_aslr()) == 1) { // check for kaslr (kernel address space layout randomization) if true, find slide and print
             if (pid != 0) {
-                // slide = ret_slide(pid);
-                slide = ret_kslide(ktp);
+                slide = ret_slide(tp, pid);
                 printf("[ >>> ] found proc slide: 0x%llx\n", slide);
             } else {
-                slide = ret_kslide(ktp);
+                slide = ret_slide(tp, pid);
                 printf("[ >>> ] found kernel slide: 0x%llx\n", slide);
             }
             if (slide == -1) {
@@ -80,27 +90,25 @@ int main(int argc, char *argv[]) {
             
     }
 
+    addr = addr-0x1;
+
     if (kw == true) { // if kw == true
-        if (write_mem(addr, slide, ktp) != 0){
+        if (write_mem(addr, slide, tp) != 0){
             printf("[ >>> ] back to main, write_mem failed.\n");
             return -1;
         }
 
-        print_mem(addr, slide, ktp);
-        return 0; // success
+        print_mem(addr, slide, tp);
+        return 0; // x
     }
 
     if (multiple == true) {
-        if (repeats >= 0x16) {
-            repeats = repeats / 8;
-        }
-
-        print_multiple(repeats, addr, slide, ktp);
+        print_multiple(bytes, addr, slide, tp);
         return 0;
     }
 
     // kw and multiple reads is false, so must be read, right?????
-    print_mem(addr, slide, ktp);
+    print_mem(addr, slide, tp);
 
     return 0;
 }

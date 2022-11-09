@@ -8,20 +8,19 @@
 #define ANSI_COLOR2 "\33[38;5;255;48;5;0m"
 #define ANSI_RESET  "\33[m"
 
-mach_port_t return_ktp(int type) {
-    task_t kernel_task;
+mach_port_t return_tp(int pid) {
+    task_t task;
     kern_return_t kr;
-    int pid = 26378;
 
-    kr = task_for_pid(mach_task_self(), pid, &kernel_task);
+    kr = task_for_pid(mach_task_self(), pid, &task);
 
     if (kr != KERN_SUCCESS) {
-        printf("[ >>> ] %d -> %x [%d]\n", pid, kernel_task, kr);
+        printf("[ >>> ] %d -> %x [%d]\n", pid, task, kr);
         return -1;
     }
 
-    printf("[ >>> ] %d -> %x [%d]\n", pid, kernel_task, kr);
-    return kernel_task;
+    printf("[ >>> ] %d -> %x [%d]\n", pid, task, kr);
+    return task;
 }
 
 int has_aslr() {
@@ -35,12 +34,12 @@ int has_aslr() {
     }
 }
 
-uint64_t ret_kslide(mach_port_t ktp) {
+uint64_t ret_slide(mach_port_t tp, int pid) {
     kern_return_t task_i;
     task_dyld_info_data_t info;
     uint32_t count = TASK_DYLD_INFO_COUNT;
 
-    task_i = task_info(ktp, TASK_DYLD_INFO, (task_info_t)&info, &count);
+    task_i = task_info(tp, TASK_DYLD_INFO, (task_info_t)&info, &count);
 
     if(task_i != KERN_SUCCESS) {
         return 0;
@@ -49,39 +48,27 @@ uint64_t ret_kslide(mach_port_t ktp) {
     return info.all_image_info_size;
 }
 
-// uint64_t ret_slide(int pid){
-//     mach_vm_address_t main_address;
-//     if(find_main_binary(pid, &main_address) != KERN_SUCCESS) {
-//         printf("Failed to find address of header!\n");
-//         return -1;
-//     }
-// 
-//     uint64_t aslr_slide;
-//     if(get_image_size(main_address, pid, &aslr_slide) == -1) {
-//         printf("Failed to find ASLR slide!\n");
-//         return -1;
-//     }
-//     return aslr_slide;
-// }
-
-int print_mem(uint64_t addr, uint64_t kslide, int task_port){
+int print_mem(uint64_t addr, uint64_t slide, int task_port){
     kern_return_t kr;
     int sz = 16;
     unsigned char data[sz];
 
-    addr = addr + kslide;
+    addr = addr + slide;
 
     kr = vm_read_overwrite(task_port,(vm_address_t)addr,sz,(vm_address_t)&data,(vm_size_t *)&sz);
 
     if (kr != KERN_SUCCESS) {
         printf("[ >>> ] failed to read! - %s\n",mach_error_string(kr));
-        return -1;
+        return 0;
     }
 
     for (int i=0; i < 16; i++) {
         if (i == 0) {
-            printf("0x%.08llx:", addr);
+            printf("%.08llx ", addr+0x1);
         } else {
+            if (i == 8){
+                printf(" ");
+            }
             if (data[i] == 0) { // if nullbyte print 00 inverted
                 printf(" " ANSI_COLOR1 "00" ANSI_RESET);
             } else {
@@ -91,15 +78,17 @@ int print_mem(uint64_t addr, uint64_t kslide, int task_port){
                 // print ascii.
                 for (int j=0; j < 16; j++) {
                     if (j == 0) {
-                        printf(" | ");
+                        printf(" |");
                     } else {
-                        if (data[j] < 32) {
-                            printf(ANSI_COLOR1 " " ANSI_RESET);
-                        } else {
+                        if (data[j] <= 32) {
+                            printf(".");
+                        } else if (data[j] < 127) {
                             printf("%c", data[j]);
+                        } else {
+                            printf(".");
                         }
                         if (j == 15) {
-                            printf("\n");
+                            printf("|\n");
                         }
                     }
                 }
@@ -107,30 +96,35 @@ int print_mem(uint64_t addr, uint64_t kslide, int task_port){
         }
     }
 
-    return 0;
+    return 1;
 }
 
-void print_multiple(int times, uint64_t addr, uint64_t kslide, int task_port){
+void print_multiple(int bytes, uint64_t addr, uint64_t slide, int task_port){
     int i;
+    int ret;
 
-    for(i = 0; i < times; i++){
-        int rmr = print_mem(addr, kslide, task_port);
-        if (rmr != 0) {
-            printf("[ >>> ] print_mem error, failed on %d\n", i);
-            return;
-        }
-        addr += 0x16;
+    if(bytes<=16 || bytes == 0){
+        bytes=1;
+    } else {
+        bytes=bytes/16;
     }
+
+    for(i = 0; i < bytes; i++){
+        ret = print_mem(addr, slide, task_port);
+        if(!ret){
+            printf("failed in print_mem()\n");
+        }
+        addr+=bytes;
+    }
+
 }
 
-int write_mem(uint64_t addr, uint64_t kslide, uint64_t data, int task_port){
-    addr = addr + kslide;
-    kern_return_t kr = vm_write(task_port,(vm_address_t)addr,(vm_address_t)&data,sizeof(data));
-
-    if (kr != KERN_SUCCESS){
-        printf("[ >>> ] write_mem failed [%s]\n", mach_error_string(kr));
-        return 1;
-    }
-    print_multiple(0x16, addr, kslide, task_port);
-    return 0;
+int write_mem(uint64_t addr, uint64_t slide, uint64_t data, int task_port){
+    /*
+        a project in the works, soon, this wont work with newer devices that want
+        to write to kernel memory, A10 and up, because of ktrr, but anything 
+        below should work with tpf0 in theory, i think, but just writing to normal
+        processes it should be fine.
+    */
+    return 1;
 }
