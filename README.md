@@ -1,6 +1,7 @@
 # vmrwtool
 A command-line tool that uses 
 ```kern_return_t vm_read_overwrite()``` and soon ```kern_return_t vm_write()``` functions from the ```mach_vm``` api to read and write data to a processes memory by identifying it by pid.
+*please dont use this, or do, this was an attempt to learn.*
 ## Usage
 ```
 ./macvmrwtool
